@@ -10,22 +10,35 @@
 
 - **6 种整理模式**：按类型 / 五大类 / 按日期 / 按扩展名 / 按大小 / 仅查重
 - **重复文件检测**：SHA-256 内容哈希，先按大小分组再精确比对
-- **一键复原**：每次操作自动记录日志，随时 `--undo` 恢复原状
-- **空文件夹清理**：`--clean-empty-dirs` 扫描并删除空目录
+- **一键复原**：每次操作自动记录日志，随时撤销
+- **空文件夹清理**：扫描并删除空目录
 - **Markdown 报告**：每次整理自动生成详细报告
+- **GUI + CLI 双模式**：双击即用 / 命令行批量
 - **安全优先**：不删除文件、不覆盖同名、自动跳过隐藏文件
 
 ## 🚀 快速开始
 
+### GUI 模式（推荐）
+
+**双击 `organizer_gui.pyw` 即可运行**，无需打开终端。
+
+![GUI Screenshot](https://img.shields.io/badge/界面-Dark_Theme-blueviolet?style=flat-square)
+
+功能：
+- 📁 一键选择目录
+- 📦 5 种整理模式切换
+- 🔍 预览模式（默认开启，不移动文件）
+- 🔁 一键查重
+- ↩ 一键复原
+- 🧹 空文件夹清理
+- 📋 实时日志输出
+
+### CLI 模式
+
 ```bash
-# 预览（不会移动文件）
-python organize.py ~/Downloads --dry-run
-
-# 按类型整理
-python organize.py ~/Downloads
-
-# 一键复原
-python organize.py ~/Downloads --undo
+python scripts/organize.py ~/Downloads --dry-run    # 预览
+python scripts/organize.py ~/Downloads              # 按类型整理
+python scripts/organize.py ~/Downloads --undo       # 复原
 ```
 
 ## 📋 整理模式
@@ -39,7 +52,7 @@ python organize.py ~/Downloads --undo
 | **按大小** | `--mode size` | `<1MB/` `1-10MB/` `10-100MB/` `100MB-1GB/` `>1GB` |
 | **仅查重** | `--duplicates-only` | 只检测重复，不移动 |
 
-## 🛠️ 完整选项
+## 🛠️ CLI 完整选项
 
 ```
 organize.py <目标目录> [选项]
@@ -55,35 +68,17 @@ organize.py <目标目录> [选项]
 -v, --verbose           详细输出
 ```
 
-## 📖 使用示例
+## 📁 项目结构
 
-```bash
-# 默认按类型归档下载目录
-python organize.py ~/Downloads
-
-# 按五大类归档
-python organize.py ~/Downloads --mode big5
-
-# 按日期归档，详细输出
-python organize.py ~/Downloads --mode date -v
-
-# 预览按大小归档
-python organize.py ~/Downloads --mode size --dry-run
-
-# 仅查看重复文件
-python organize.py ~/Downloads --duplicates-only
-
-# 一键复原
-python organize.py ~/Downloads --undo
-
-# 扫描空文件夹
-python organize.py ~/Downloads --clean-empty-dirs
-
-# 删除空文件夹
-python organize.py ~/Downloads --clean-empty-dirs --execute
-
-# 跳过某些目录
-python organize.py ~/Downloads --skip-dirs .git node_modules
+```
+file-organizer/
+├── README.md
+├── LICENSE
+├── SKILL.md                    # MiClaw Skill 描述
+├── scripts/
+│   └── organize.py             # CLI 版本
+└── gui/
+    └── organizer_gui.pyw       # GUI 版本（双击即用）
 ```
 
 ## 🔍 重复文件检测
@@ -101,22 +96,23 @@ python organize.py ~/Downloads --skip-dirs .git node_modules
 | **不覆盖同名** | 自动加 `_1`、`_2` 后缀 |
 | **一键复原** | 操作日志记录每一步 |
 | **跳过隐藏文件** | 默认跳过 `.` 开头的目录 |
-| **预览模式** | `--dry-run` 先看效果再决定 |
+| **预览模式** | 先看效果再决定 |
 
 ## 📦 安装
 
 ```bash
 git clone https://github.com/youyangdawdsad/file-organizer.git
-cd file-organizer
-python scripts/organize.py ~/Downloads --dry-run
 ```
 
-或直接下载 [ZIP](https://github.com/youyangdawdsad/file-organizer/releases/download/v2.1.0/file-organizer.zip)。
+或下载 [ZIP](https://github.com/youyangdawdsad/file-organizer/releases/download/v2.1.0/file-organizer.zip)。
+
+**GUI 使用**：解压后双击 `gui/organizer_gui.pyw`
+**CLI 使用**：`python scripts/organize.py ~/Downloads --dry-run`
 
 ## 📋 依赖
 
 - **Python 3.8+**
-- **仅标准库**：os, shutil, hashlib, pathlib, json, datetime, argparse, io, sys, concurrent.futures
+- **仅标准库**：os, shutil, hashlib, pathlib, json, datetime, argparse, io, sys, tkinter, threading, concurrent.futures
 - **零第三方包**
 
 ## 📄 许可证
