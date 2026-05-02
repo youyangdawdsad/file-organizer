@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-File Organizer v2.1 — 本地文件夹智能整理工具
+File Organizer v2.2 — 本地文件夹智能整理工具
 零 API 依赖，纯 Python 标准库实现。
 
 核心功能：
@@ -24,7 +24,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ── 版本 ──────────────────────────────────────────────────
-__version__ = "2.1.0"
+__version__ = "2.2.0"
 
 # ── 分类规则 ──────────────────────────────────────────────
 CATEGORY_MAP = {
@@ -107,8 +107,9 @@ for _cat, _exts in BIG5_MAP.items():
         EXT_TO_BIG5[_ext] = _cat
 
 # ── 内部文件标记 ──────────────────────────────────────────
-REPORT_FILENAME = "._file_organizer_report.md"
-LOG_FILENAME = "._file_organizer_log.json"
+HIDDEN_DIR = ".file-organizer"
+REPORT_FILENAME = "report.md"
+LOG_FILENAME = "log.json"
 
 
 # ══════════════════════════════════════════════════════════
@@ -144,8 +145,8 @@ def get_category(ext: str) -> str | None:
 
 
 def is_internal(name: str) -> bool:
-    """判断是否为自身生成的内部文件。"""
-    return name.startswith("._file_organizer_")
+    """判断是否为自身生成的内部文件或目录。"""
+    return name.startswith("._file_organizer_") or name == HIDDEN_DIR
 
 
 def _is_empty_recursive(path: Path) -> bool:
@@ -337,7 +338,9 @@ class OperationLog:
 
     def __init__(self, target: Path):
         self.target = target
-        self.log_path = target / LOG_FILENAME
+        self.hidden_dir = target / HIDDEN_DIR
+        self.hidden_dir.mkdir(parents=True, exist_ok=True)
+        self.log_path = self.hidden_dir / LOG_FILENAME
         self.entries: list[dict] = []
         self.meta: dict = {}
 
@@ -383,7 +386,10 @@ class OperationLog:
 
     @classmethod
     def load(cls, target: Path) -> "OperationLog | None":
-        log_path = target / LOG_FILENAME
+        # 优先从隐藏目录读取，兼容旧路径
+        hidden_path = target / HIDDEN_DIR / LOG_FILENAME
+        old_path = target / LOG_FILENAME
+        log_path = hidden_path if hidden_path.exists() else old_path
         if not log_path.exists():
             return None
         try:
@@ -469,7 +475,11 @@ def undo_operations(target: Path, verbose: bool = False) -> bool:
                 except Exception as e:
                     errors.append(f"删除目录失败 {dirpath}: {e}")
 
-    log.log_path.unlink(missing_ok=True)
+        log.log_path.unlink(missing_ok=True)
+
+    # 如果隐藏目录为空则删除
+    if log.hidden_dir.exists() and not any(log.hidden_dir.iterdir()):
+        log.hidden_dir.rmdir()
 
     print(f"\n✅ 复原完成：成功 {undone} 条")
     if errors:
@@ -745,7 +755,7 @@ def main():
     setup_encoding()
 
     parser = argparse.ArgumentParser(
-        description="File Organizer v2.1 — 本地文件夹智能整理",
+        description="File Organizer v2.2 — 本地文件夹智能整理",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 整理模式:
@@ -778,6 +788,8 @@ def main():
     parser.add_argument("--skip-dirs", nargs="+", default=[], help="额外跳过的子目录名")
     parser.add_argument("--clean-empty-dirs", action="store_true", help="扫描空文件夹（仅报告，不删除）")
     parser.add_argument("--execute", action="store_true", help="配合 --clean-empty-dirs 实际删除空文件夹")
+    parser.add_argument("--category", type=str, default=None,
+                        help="仅整理指定分类的文件（文档/图片/视频音频/压缩包/安装程序）")
     parser.add_argument("-v", "--verbose", action="store_true", help="详细输出")
 
     args = parser.parse_args()
@@ -831,6 +843,20 @@ def main():
         print("   目录为空，无需整理。")
         sys.exit(0)
 
+    # ── 分类过滤 ──
+    if args.category:
+        cat_lower = args.category.lower()
+        # 支持中文分类名映射
+        cat_aliases = {"文档": "documents", "图片": "images", "视频音频": "videos",
+                       "压缩包": "archives", "安装程序": "installers"}
+        cat_en = cat_aliases.get(cat_lower, cat_lower)
+        before = len(files)
+        files = [f for f in files if (cat := get_category(f.suffix.lower())) is not None and (cat.lower() == cat_en.lower() or cat.lower() == cat_lower)]
+        print(f"   分类过滤: {before} → {len(files)} 个文件（{args.category}）")
+        if not files:
+            print("   该分类下没有文件，无需整理。")
+            sys.exit(0)
+
     # ── 重复检测 ──
     print("🔄 检测重复文件...")
     duplicates = find_duplicates(files, verbose=args.verbose)
@@ -883,7 +909,7 @@ def main():
 
     # ── 生成报告 ──
     report = generate_report(target, len(files), stats, duplicates, args.dry_run, mode_desc)
-    report_path = target / REPORT_FILENAME
+    report_path = target / HIDDEN_DIR / REPORT_FILENAME
 
     if not args.dry_run:
         report_path.write_text(report, encoding="utf-8")
